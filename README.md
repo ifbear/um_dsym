@@ -3,7 +3,7 @@
 
 # 一、 背景
 
-每次上传符号表文件需要打开友盟[官网](https://apm.umeng.com/),过程比较繁琐，故借鉴[简书](https://www.jianshu.com/p/2b8c1cbdd17a)上网友提供的命令行工具，开发一款简单的GUI工具，方便开发者上传。
+每次上传符号表文件需要打开友盟[官网](https://apm.umeng.com/),过程比较繁琐，故借鉴[简书](https://www.jianshu.com/p/2b8c1cbdd17a)上网友提供的命令行工具，开发一款简单的GUI工具，方便上传至[友盟](https://apm.umeng.com/)。
 
 # 二、前期准备
 
