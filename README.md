@@ -7,7 +7,7 @@
 
 # 二、前期准备
 
-可参见[简书](https://www.jianshu.com/p/2b8c1cbdd17a)中1-5条内容，安装好python环境和依赖库。安装打包工具[pyinstaller](https://pyinstaller.org/en/stable/installation.html),方便将项目打包成app，直接使用。
+可参见[简书](https://www.jianshu.com/p/2b8c1cbdd17a)中1-5条内容，安装好python环境和依赖库。安装打包工具[pyinstaller](https://pyinstaller.org/en/stable/installation.html)。
 
 # 三、克隆
 
