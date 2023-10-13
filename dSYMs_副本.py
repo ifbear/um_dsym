@@ -1,7 +1,9 @@
+from cProfile import label
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
 import tkinter as tk
+from tkinter.tix import ComboBox
 import tkinter.ttk as ttk
 import zipfile
 import os
@@ -141,6 +143,11 @@ def zipDSYMAndUpload():
 
 # 设置回调函数
 def selectdSYM(event=None):
+    if _app == {}:
+        messagebox.showinfo("提示","请先选择App")
+        # 激活窗口
+        window.deiconify()
+        return
     myFileTypes = [('All files', '*')]
     filepath = filedialog.askopenfilename(title="选择", initialdir=os.environ['HOME']+"/Library/Developer/Xcode/Archives/", filetypes=myFileTypes)
     # 激活窗口
@@ -152,9 +159,11 @@ def selectdSYM(event=None):
     pText.insert(END, "选中文件:"+_path+"\n")
 
 # 选择app
-def selectRadio(event=None):
+def selectApp(event=None):
     global _app
-    _app = list(filter(lambda app: app['name'] == radio_var.get(), _apps))[0]
+    name = lBox.get(lBox.curselection())
+    _app = list(filter(lambda app: app['name'] == name, _apps))[0]
+    print(_app)
 
 # 上传
 def uploaddSYM(event=None):
@@ -164,6 +173,13 @@ def uploaddSYM(event=None):
     pText.insert(END, "开始压缩...\n")
     td = Thread(target=zipDSYMAndUpload)
     td.start()
+
+# app names
+def appNames():
+    names = []
+    for app in _apps:
+        names.append(app['name'])
+    return names
 
 # GUI 
 
@@ -179,14 +195,13 @@ y = (screen_height - 300) // 2
 window.geometry("450x300+{}+{}".format(x, y))
 
 # 选择app
-radio_var = tk.StringVar()
-for app in _apps:
-    i = _apps.index(app)
-    x = i * 120 + 20
-    radio = Radiobutton(window, text=app['name'], variable=radio_var, value=app['name'], command=selectRadio)
-    radio.place(x=x, y=20, width=100, height=32)
-    if i == 0:
-        radio.invoke()
+Label(window, text="App").place(x=20, y=20, height=32, width=40)
+# Listbox
+lBox = Listbox(window, selectmode=SINGLE)
+lBox.place(x=80, y=10, height=50, width=120)
+for i, name in enumerate(appNames()):
+    lBox.insert(i, name)
+lBox.bind('<<ListboxSelect>>', selectApp)
 
 # 选择文件
 sBtn = Button(window, text="选择", command=selectdSYM, anchor=CENTER)
