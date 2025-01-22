@@ -1,15 +1,15 @@
-from cProfile import label
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
 import tkinter as tk
-from tkinter.tix import ComboBox
-import tkinter.ttk as ttk
+from tkinter.constants import END
 import zipfile
 import os
 import plistlib as pl
 import asyncio
 import requests
+from queue import Queue
+
 
 
 from threading import Thread
@@ -85,22 +85,23 @@ class Sample:
                           data={"signature": signature, "OSSAccessKeyId": access_key_id, "policy": policy, "key": key, "callback": callback}, 
                           headers={"Context-type": "application/json"})
             if res.ok:
-                pText.insert(END, "上传成功\n")
-                print("上传成功")
+                queue.put("上传成功\n")
             else:
-                pText.insert(END, "上传失败...\n")
-                pText.insert(END, res.text)
+                queue.put("上传失败...\n")
+                queue.put(res.text)
 
         except Exception as error:
             # 如有需要，请打印 error
-            print(error) 
+            queue.put("上传失败...\n")
+            queue.put(error)
 
 # 获取版本
 def dsymVersion():
     infopath = os.path.join(_path, "Info.plist")
     with open(infopath, 'rb') as ifile:
         info = pl.load(ifile)
-    return info["ApplicationProperties"]["CFBundleShortVersionString"]
+    properties = info["ApplicationProperties"]
+    return properties["CFBundleShortVersionString"] + "." + properties["CFBundleVersion"]
 
 # dsym name
 def dsymName():
@@ -112,6 +113,7 @@ def zipdsymName():
 
 # dsym path
 def dsymPath():
+    print(_path)
     return os.path.join(_path, "dSYMs", dsymName())
 
 # 压缩路径
@@ -120,6 +122,7 @@ def zipPath():
 
 # 获取dsym文件
 def zipDSYMAndUpload():
+    queue.put("开始压缩...\n")
     dsympath = dsymPath()
     zippath = zipPath()
     z = zipfile.ZipFile(zippath, 'w', zipfile.ZIP_DEFLATED) #参数一：文件夹名
@@ -129,25 +132,19 @@ def zipDSYMAndUpload():
         for filename in filenames:
             z.write(os.path.join(dirpath, filename),fpath+filename)
     z.close()
-    pText.insert(END, "压缩完成...\n")
+    queue.put("压缩成功...\n")
+
+    queue.put("开始上传...\n")
 
     # 获取版本
     version = dsymVersion()
-    pText.insert(END, "版本号:"+version+"\n")
-    #2. 压缩上传
     # 上传
-    pText.insert(END, "开始上传...\n")
     loop = asyncio.new_event_loop()
     loop.run_until_complete(Sample.main_async([version, zipdsymName()]))
     loop.close()
 
 # 设置回调函数
 def selectdSYM(event=None):
-    if _app == {}:
-        messagebox.showinfo("提示","请先选择App")
-        # 激活窗口
-        window.deiconify()
-        return
     myFileTypes = [('All files', '*')]
     filepath = filedialog.askopenfilename(title="选择", initialdir=os.environ['HOME']+"/Library/Developer/Xcode/Archives/", filetypes=myFileTypes)
     # 激活窗口
@@ -156,32 +153,33 @@ def selectdSYM(event=None):
         return
     global _path
     _path = filepath
-    pText.insert(END, "选中文件:"+_path+"\n")
+    queue.put("选中文件:"+_path+"\n")
+    # pText.insert(END, "选中文件:"+_path+"\n")
+    # 获取版本
+    version = dsymVersion()
+    queue.put("版本号:"+version+"\n")
+    # pText.insert(END, "版本号:"+version+"\n")
 
 # 选择app
-def selectApp(event=None):
+def selectRadio(event=None):
     global _app
-    name = lBox.get(lBox.curselection())
-    _app = list(filter(lambda app: app['name'] == name, _apps))[0]
-    print(_app)
+    _app = list(filter(lambda app: app['name'] == radio_var.get(), _apps))[0]
 
 # 上传
 def uploaddSYM(event=None):
     if len(_path) == 0:
         messagebox.showinfo("提示","请先选择dsym文件")
         return
-    pText.insert(END, "开始压缩...\n")
-    td = Thread(target=zipDSYMAndUpload)
-    td.start()
+    Thread(target=zipDSYMAndUpload).start()
 
-# app names
-def appNames():
-    names = []
-    for app in _apps:
-        names.append(app['name'])
-    return names
-
+def check_queue():
+    while not queue.empty():
+        msg = queue.get()
+        pText.insert(END, msg+"\n")
+    window.after(100, check_queue)  # 定时检查队列
 # GUI 
+
+queue = Queue()
 
 window = Tk()
 window.title("dSYMs")
@@ -195,13 +193,14 @@ y = (screen_height - 300) // 2
 window.geometry("450x300+{}+{}".format(x, y))
 
 # 选择app
-Label(window, text="App").place(x=20, y=20, height=32, width=40)
-# Listbox
-lBox = Listbox(window, selectmode=SINGLE)
-lBox.place(x=80, y=10, height=50, width=120)
-for i, name in enumerate(appNames()):
-    lBox.insert(i, name)
-lBox.bind('<<ListboxSelect>>', selectApp)
+radio_var = tk.StringVar()
+for app in _apps:
+    i = _apps.index(app)
+    x = i * 120 + 20
+    radio = Radiobutton(window, text=app['name'], variable=radio_var, value=app['name'], command=selectRadio)
+    radio.place(x=x, y=20, width=100, height=32)
+    if i == 0:
+        radio.invoke()
 
 # 选择文件
 sBtn = Button(window, text="选择", command=selectdSYM, anchor=CENTER)
@@ -212,7 +211,9 @@ uBtn = Button(window, text="上传", command=uploaddSYM, anchor=CENTER)
 uBtn.place(x=340, y=20, height=32, width=60)
 
 # 日志
-pText = Text(window)
+pText = Text(window, width=380, height=208, bg='#4F4F4F', fg='#ffffff')
+pText.insert(END, "请选择dSYM文件\n")
 pText.place(x=20, y=72, width=410, height=208)
 
+window.after(100, check_queue)
 window.mainloop()
