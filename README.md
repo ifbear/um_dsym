@@ -17,7 +17,7 @@
 
 打开终端工具,进入项目目录下运行以下命令即可：
 ```
-  pyinstaller --windowed dSYMs.py
+  pyinstaller -i umeng.icns --windowed ./dSYMs.py # -i umeng.icns可以不加 使用默认图标
 ```
 打包完成后，可在`dist`文件夹下找到打包后的文件。
 
